@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FX Transaction Logger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #0a0e17;
+      color: #e8ecf4;
+      font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input::placeholder { color: #334155; }
+    select { color-scheme: dark; }
+
+    .header {
+      background: linear-gradient(135deg, #0f1523 0%, #141c2e 50%, #0f1523 100%);
+      border-bottom: 1px solid rgba(99,179,237,0.08);
+      padding: 20px 0;
+    }
+    .header-inner {
+      max-width: 940px; margin: 0 auto; padding: 0 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo-group { display: flex; align-items: center; gap: 14px; }
+    .logo-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: #fff;
+      font-family: 'DM Mono', monospace;
+    }
+    .logo-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: #f0f4fc; }
+    .logo-sub { font-size: 11px; color: #64748b; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 1px; }
+    .status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #475569; font-family: 'DM Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; transition: all 0.3s; }
+    .status-dot.live { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+    .status-dot.loading { background: #eab308; box-shadow: 0 0 8px rgba(234,179,8,0.4); }
+    .status-dot.error { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+    .main { max-width: 940px; margin: 0 auto; padding: 24px; }
+
+    .tabs {
+      display: flex; gap: 4px; margin-bottom: 28px;
+      background: #111827; border-radius: 12px; padding: 4px;
+      border: 1px solid rgba(99,179,237,0.06);
+    }
+    .tab-btn {
+      flex: 1; padding: 12px 0; border: none; border-radius: 9px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+      background: transparent; color: #64748b;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #1e3a5f, #1a2744);
+      color: #93c5fd; box-shadow: 0 2px 8px rgba(37,99,235,0.15);
+    }
+
+    .card {
+      background: linear-gradient(145deg, #111827, #0f1623);
+      border-radius: 16px; padding: 28px;
+      border: 1px solid rgba(99,179,237,0.08);
+    }
+    .card + .card { margin-top: 16px; }
+    .section-label {
+      font-size: 13px; font-weight: 600; color: #93c5fd; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .badge.in { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .badge.out { background: rgba(239,68,68,0.12); color: #f87171; }
+
+    .amount-row { display: flex; align-items: center; gap: 12px; }
+    .currency-sign { font-size: 36px; font-weight: 300; color: #475569; font-family: 'DM Mono', monospace; }
+    .amount-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-size: 42px; font-weight: 300; color: #f0f4fc;
+      font-family: 'DM Mono', monospace; letter-spacing: -0.02em; width: 100%;
+    }
+    .currency-badge {
+      font-size: 14px; font-weight: 600; color: #475569;
+      padding: 6px 12px; background: rgba(99,179,237,0.06); border-radius: 8px; white-space: nowrap;
+    }
+
+    .live-conversion {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid rgba(99,179,237,0.06);
+    }
+    .live-conv-item { text-align: center; }
+    .live-conv-label { font-size: 11px; color: #475569; margin-bottom: 4px; }
+    .live-conv-value { font-size: 15px; font-weight: 600; color: #e2e8f0; font-family: 'DM Mono', monospace; }
+
+    .fields-row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .fields-row > div { flex: 1; }
+    .field-label { font-size: 12px; color: #475569; display: block; margin-bottom: 6px; font-weight: 500; }
+    .field-input, .field-select {
+      width: 100%; padding: 11px 14px; background: #0a0e17;
+      border: 1px solid rgba(99,179,237,0.1); border-radius: 10px;
+      color: #e2e8f0; font-size: 14px; outline: none;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      transition: border-color 0.2s; color-scheme: dark;
+    }
+    .field-input:focus, .field-select:focus { border-color: rgba(37,99,235,0.4); }
+
+    .payee-card {
+      background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px;
+      margin-bottom: 10px; border: 1px solid rgba(99,179,237,0.04);
+      position: relative;
+    }
+    .payee-row { display: flex; gap: 10px; align-items: flex-end; }
+    .payee-row > div { flex: 1; }
+    .payee-row > div.currency-col { flex: 0 0 130px; }
+    .payee-row > div.converted-col { flex: 0 0 160px; }
+    .converted-display {
+      padding: 11px 14px; background: rgba(37,99,235,0.06);
+      border: 1px solid rgba(37,99,235,0.12); border-radius: 10px;
+      font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 600;
+      color: #93c5fd; min-height: 43px; display: flex; align-items: center;
+    }
+    .remove-payee {
+      position: absolute; top: 10px; right: 10px;
+      width: 24px; height: 24px; border-radius: 6px;
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);
+      color: #64748b; font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .remove-payee:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+    .add-payee-btn {
+      width: 100%; padding: 12px; border: 1px dashed rgba(99,179,237,0.15);
+      border-radius: 10px; background: transparent; color: #64748b;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .add-payee-btn:hover { border-color: rgba(37,99,235,0.3); color: #93c5fd; }
+
+    .log-btn {
+      width: 100%; padding: 16px 0; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.02em; transition: all 0.3s;
+      margin-top: 20px;
+    }
+    .log-btn.active { background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; box-shadow: 0 4px 20px rgba(37,99,235,0.3); }
+    .log-btn.disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
+
+    .toast {
+      position: fixed; top: 24px; right: 24px;
+      background: linear-gradient(135deg, #065f46, #064e3b);
+      color: #a7f3d0; padding: 14px 22px; border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      border: 1px solid rgba(167,243,208,0.15);
+      z-index: 999; animation: slideIn 0.3s ease-out;
+    }
+    .toast-icon {
+      width: 22px; height: 22px; border-radius: 50%; background: #22c55e;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(40px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .summary-bar {
+      background: linear-gradient(145deg, #111827, #0f1623);
+      border-radius: 14px; padding: 18px 22px; margin-bottom: 18px;
+      border: 1px solid rgba(99,179,237,0.06);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .summary-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+    .stat-label { font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+    .stat-value { font-size: 20px; font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 2px; }
+    .stat-value.highlight { color: #93c5fd; }
+    .export-btn {
+      padding: 10px 18px; background: rgba(37,99,235,0.1);
+      border: 1px solid rgba(37,99,235,0.2); border-radius: 10px;
+      color: #93c5fd; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .search-input {
+      flex: 1; padding: 11px 16px; background: #111827;
+      border: 1px solid rgba(99,179,237,0.08); border-radius: 10px;
+      color: #e2e8f0; font-size: 13px; outline: none; font-family: inherit;
+    }
+    .sort-btn {
+      padding: 11px 16px; background: #111827;
+      border: 1px solid rgba(99,179,237,0.08); border-radius: 10px;
+      color: #93c5fd; font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+
+    .tx-list { display: flex; flex-direction: column; gap: 8px; }
+    .tx-item {
+      background: #111827; border-radius: 14px;
+      border: 1px solid rgba(99,179,237,0.04);
+      overflow: hidden; transition: all 0.2s;
+    }
+    .tx-item.expanded { background: linear-gradient(145deg, #131b2e, #111827); border-color: rgba(37,99,235,0.2); }
+    .tx-header {
+      padding: 16px 20px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tx-left { display: flex; align-items: center; gap: 14px; }
+    .tx-avatar {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(34,197,94,0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #4ade80;
+      font-family: 'DM Mono', monospace;
+    }
+    .tx-name { font-weight: 600; font-size: 14px; color: #e2e8f0; }
+    .tx-meta { font-size: 12px; color: #475569; margin-top: 2px; font-family: 'DM Mono', monospace; }
+    .tx-amount-received { font-weight: 700; font-size: 16px; color: #4ade80; font-family: 'DM Mono', monospace; }
+    .tx-toggle { font-size: 11px; color: #475569; margin-top: 2px; }
+
+    .tx-details { padding: 0 20px 18px; border-top: 1px solid rgba(99,179,237,0.06); padding-top: 16px; }
+    .tx-flow-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .tx-flow-label.in { color: #4ade80; }
+    .tx-flow-label.out { color: #f87171; }
+    .tx-receive-box {
+      padding: 10px 14px; background: rgba(34,197,94,0.06); border-radius: 10px;
+      margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .tx-receive-name { font-size: 14px; color: #e2e8f0; font-weight: 500; }
+    .tx-receive-amount { font-size: 15px; font-weight: 600; color: #4ade80; font-family: 'DM Mono', monospace; }
+    .tx-payee-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .tx-payee-name { font-size: 14px; color: #e2e8f0; font-weight: 500; }
+    .tx-payee-amount { font-size: 15px; font-weight: 600; color: #f87171; font-family: 'DM Mono', monospace; }
+
+    .tx-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
+    .delete-btn {
+      padding: 6px 14px; background: transparent;
+      border: 1px solid rgba(239,68,68,0.15); border-radius: 8px;
+      color: #64748b; font-size: 12px; font-weight: 500;
+      cursor: pointer; font-family: inherit;
+    }
+    .delete-confirm-btn {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    .delete-yes { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; }
+    .delete-cancel { background: rgba(99,179,237,0.06); border: 1px solid rgba(99,179,237,0.1); color: #64748b; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: #475569; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-title { font-size: 16px; font-weight: 600; }
+    .empty-sub { font-size: 13px; margin-top: 4px; color: #334155; }
+
+    .arrow-divider {
+      display: flex; align-items: center; justify-content: center;
+      padding: 12px 0; color: #334155; font-size: 20px;
+    }
+
+    .footer {
+      text-align: center; margin-top: 40px; padding-bottom: 20px;
+      font-size: 11px; color: #334155; font-family: 'DM Mono', monospace;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 700px) {
+      .live-conversion { grid-template-columns: 1fr; }
+      .payee-row { flex-direction: column; align-items: stretch; }
+      .payee-row > div.currency-col, .payee-row > div.converted-col { flex: 1; }
+      .amount-input { font-size: 28px; }
+      .header-inner { flex-direction: column; gap: 10px; }
+      .summary-bar { flex-direction: column; align-items: flex-start; }
+      .fields-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo-group">
+        <div class="logo-icon">FX</div>
+        <div>
+          <div class="logo-title">FX Transaction Logger</div>
+          <div class="logo-sub">THB → USD · GBP · INR</div>
+        </div>
+      </div>
+      <div class="status">
+        <div class="status-dot loading" id="statusDot"></div>
+        <span id="statusText">Fetching rates…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <button class="tab-btn active" id="tabConvert" onclick="switchTab('convert')">New Transaction</button>
+      <button class="tab-btn" id="tabHistory" onclick="switchTab('history')">History (0)</button>
+    </div>
+
+    <!-- New Transaction -->
+    <div id="convertPanel">
+      <div class="card">
+        <div class="section-label"><span>Received</span><span class="badge in">IN</span></div>
+        <div class="amount-row">
+          <span class="currency-sign">฿</span>
+          <input type="number" class="amount-input" id="amountInput" placeholder="0.00" oninput="updateAll()">
+          <span class="currency-badge">🇹🇭 THB</span>
+        </div>
+        <div class="live-conversion hidden" id="liveConversion">
+          <div class="live-conv-item">
+            <div class="live-conv-label">🇺🇸 USD</div>
+            <div class="live-conv-value" id="liveUSD">$0.00</div>
+          </div>
+          <div class="live-conv-item">
+            <div class="live-conv-label">🇬🇧 GBP</div>
+            <div class="live-conv-value" id="liveGBP">£0.00</div>
+          </div>
+          <div class="live-conv-item">
+            <div class="live-conv-label">🇮🇳 INR</div>
+            <div class="live-conv-value" id="liveINR">₹0.00</div>
+          </div>
+        </div>
+        <div class="fields-row" style="margin-top:16px">
+          <div>
+            <label class="field-label">From (Sender)</label>
+            <input type="text" class="field-input" id="senderInput" placeholder="e.g. Somchai">
+          </div>
+          <div>
+            <label class="field-label">Date</label>
+            <input type="date" class="field-input" id="dateInput">
+          </div>
+          <div>
+            <label class="field-label">Reference #</label>
+            <input type="text" class="field-input" id="refInput" placeholder="e.g. TXN-001">
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-divider">▼</div>
+
+      <div class="card">
+        <div class="section-label"><span>Pay Out</span><span class="badge out">OUT</span></div>
+        <div id="payeesList"></div>
+        <button class="add-payee-btn" onclick="addPayee()">+ Add payee</button>
+      </div>
+
+      <button class="log-btn disabled" id="logBtn" onclick="logTransaction()">Enter an amount to log</button>
+    </div>
+
+    <!-- History -->
+    <div id="historyPanel" class="hidden">
+      <div class="summary-bar hidden" id="summaryBar">
+        <div class="summary-stats">
+          <div>
+            <div class="stat-label">Total Received</div>
+            <div class="stat-value highlight" id="totalTHB">฿0.00</div>
+          </div>
+          <div>
+            <div class="stat-label">Transactions</div>
+            <div class="stat-value" id="txCount">0</div>
+          </div>
+        </div>
+        <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+      </div>
+      <div class="search-row hidden" id="searchRow">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search by name, ref, or date..." oninput="renderHistory()">
+        <button class="sort-btn" id="sortBtn" onclick="toggleSort()">↓ Newest</button>
+      </div>
+      <div id="txList"></div>
+    </div>
+
+    <div class="footer" id="footer">Rates: loading…</div>
+  </div>
+
+  <div class="toast hidden" id="toast">
+    <div class="toast-icon">✓</div>
+    Transaction logged successfully
+  </div>
+
+  <script>
+    let rates = { USD: 0.0315, GBP: 0.023, INR: 2.845 };
+    let ratesDate = null;
+    let transactions = [];
+    let sortOrder = 'newest';
+    let expandedTx = null;
+    let deleteConfirm = null;
+    let payees = [];
+    let payeeIdCounter = 0;
+
+    const CURRENCIES = {
+      USD: { name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+      GBP: { name: 'British Pound', symbol: '£', flag: '🇬🇧' },
+      INR: { name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+    };
+
+    const fmt = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    const genId = () => Math.random().toString(36).substr(2, 9);
+    const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+    try { const s = localStorage.getItem('fx_transactions_v2'); if (s) transactions = JSON.parse(s); } catch(e) {}
+    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+    fetch('https://api.frankfurter.dev/v1/latest?base=THB&symbols=USD,GBP,INR')
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        rates = { USD: data.rates.USD, GBP: data.rates.GBP, INR: data.rates.INR };
+        ratesDate = data.date;
+        document.getElementById('statusDot').className = 'status-dot live';
+        document.getElementById('statusText').textContent = 'Live rates · ' + data.date;
+        updateRateDisplay(); updateAll();
+      })
+      .catch(() => {
+        document.getElementById('statusDot').className = 'status-dot error';
+        document.getElementById('statusText').textContent = 'Using fallback rates';
+        updateRateDisplay();
+      });
+
+    function updateRateDisplay() {
+      const src = ratesDate ? 'Live rates via Frankfurter API (ECB data)' : 'Fallback rates';
+      document.getElementById('footer').textContent =
+        '1 THB = $' + rates.USD + ' · £' + rates.GBP + ' · ₹' + rates.INR + ' · ' + src;
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tabConvert').className = 'tab-btn' + (tab === 'convert' ? ' active' : '');
+      document.getElementById('tabHistory').className = 'tab-btn' + (tab === 'history' ? ' active' : '');
+      document.getElementById('convertPanel').className = tab === 'convert' ? '' : 'hidden';
+      document.getElementById('historyPanel').className = tab === 'history' ? '' : 'hidden';
+      if (tab === 'history') renderHistory();
+    }
+
+    function addPayee() {
+      payees.push({ id: ++payeeIdCounter, name: '', currency: 'USD' });
+      renderPayees();
+    }
+
+    function removePayee(id) {
+      payees = payees.filter(p => p.id !== id);
+      renderPayees(); updateAll();
+    }
+
+    function renderPayees() {
+      const c = document.getElementById('payeesList');
+      const thb = parseFloat(document.getElementById('amountInput').value) || 0;
+      c.innerHTML = payees.map(p => {
+        const info = CURRENCIES[p.currency];
+        const conv = thb > 0 ? info.symbol + fmt(thb * rates[p.currency]) : '—';
+        return `
+          <div class="payee-card">
+            ${payees.length > 1 ? '<button class="remove-payee" onclick="removePayee('+p.id+')" title="Remove">×</button>' : ''}
+            <div class="payee-row">
+              <div>
+                <label class="field-label">Payee Name</label>
+                <input type="text" class="field-input" value="${esc(p.name)}" placeholder="e.g. John"
+                  oninput="updatePayeeName(${p.id}, this.value)">
+              </div>
+              <div class="currency-col">
+                <label class="field-label">Currency</label>
+                <select class="field-select" onchange="updatePayeeCurrency(${p.id}, this.value)">
+                  <option value="USD" ${p.currency==='USD'?'selected':''}>🇺🇸 USD</option>
+                  <option value="GBP" ${p.currency==='GBP'?'selected':''}>🇬🇧 GBP</option>
+                  <option value="INR" ${p.currency==='INR'?'selected':''}>🇮🇳 INR</option>
+                </select>
+              </div>
+              <div class="converted-col">
+                <label class="field-label">They Receive</label>
+                <div class="converted-display" id="pc_${p.id}">${conv}</div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function updatePayeeName(id, v) { const p = payees.find(x => x.id === id); if (p) p.name = v; }
+    function updatePayeeCurrency(id, v) { const p = payees.find(x => x.id === id); if (p) p.currency = v; updateAll(); }
+
+    function updateAll() {
+      const thb = parseFloat(document.getElementById('amountInput').value) || 0;
+      const lc = document.getElementById('liveConversion');
+      const btn = document.getElementById('logBtn');
+
+      if (thb > 0) {
+        lc.classList.remove('hidden');
+        document.getElementById('liveUSD').textContent = '$' + fmt(thb * rates.USD);
+        document.getElementById('liveGBP').textContent = '£' + fmt(thb * rates.GBP);
+        document.getElementById('liveINR').textContent = '₹' + fmt(thb * rates.INR);
+      } else { lc.classList.add('hidden'); }
+
+      payees.forEach(p => {
+        const el = document.getElementById('pc_' + p.id);
+        if (el) {
+          const info = CURRENCIES[p.currency];
+          el.textContent = thb > 0 ? info.symbol + fmt(thb * rates[p.currency]) : '—';
+        }
+      });
+
+      if (thb > 0) {
+        btn.className = 'log-btn active';
+        btn.textContent = 'Log Transaction — ฿' + fmt(thb);
+      } else {
+        btn.className = 'log-btn disabled';
+        btn.textContent = 'Enter an amount to log';
+      }
+    }
+
+    function logTransaction() {
+      const thb = parseFloat(document.getElementById('amountInput').value) || 0;
+      if (thb <= 0) return;
+      const tx = {
+        id: genId(),
+        thbAmount: thb,
+        sender: document.getElementById('senderInput').value || '—',
+        date: document.getElementById('dateInput').value,
+        refNumber: document.getElementById('refInput').value || '—',
+        payees: payees.map(p => ({
+          name: p.name || '—',
+          currency: p.currency,
+          amount: thb * rates[p.currency],
+        })),
+        rates: { ...rates },
+        timestamp: Date.now(),
+      };
+      transactions.unshift(tx);
+      saveTransactions(); updateHistoryCount();
+
+      document.getElementById('amountInput').value = '';
+      document.getElementById('senderInput').value = '';
+      document.getElementById('refInput').value = '';
+      document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+      payees = []; addPayee(); updateAll();
+
+      const toast = document.getElementById('toast');
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2500);
+    }
+
+    function saveTransactions() {
+      try { localStorage.setItem('fx_transactions_v2', JSON.stringify(transactions)); } catch(e) {}
+    }
+
+    function updateHistoryCount() {
+      document.getElementById('tabHistory').textContent = 'History (' + transactions.length + ')';
+    }
+
+    function toggleSort() {
+      sortOrder = sortOrder === 'newest' ? 'oldest' : 'newest';
+      document.getElementById('sortBtn').textContent = sortOrder === 'newest' ? '↓ Newest' : '↑ Oldest';
+      renderHistory();
+    }
+
+    function exportCSV() {
+      if (!transactions.length) return;
+      let rows = [['Date','Reference','Sender','THB Received','Payee','Currency','Amount Paid']];
+      transactions.forEach(tx => {
+        if (!tx.payees.length) {
+          rows.push([tx.date,'"'+tx.refNumber+'"','"'+tx.sender+'"',tx.thbAmount.toFixed(2),'','','']);
+        } else {
+          tx.payees.forEach((p,i) => {
+            rows.push([
+              i===0?tx.date:'', i===0?'"'+tx.refNumber+'"':'', i===0?'"'+tx.sender+'"':'',
+              i===0?tx.thbAmount.toFixed(2):'', '"'+p.name+'"', p.currency, p.amount.toFixed(2)
+            ]);
+          });
+        }
+      });
+      const csv = rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = 'fx_transactions_' + new Date().toISOString().split('T')[0] + '.csv';
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    function deleteTx(id) {
+      transactions = transactions.filter(t => t.id !== id);
+      saveTransactions(); updateHistoryCount();
+      expandedTx = null; deleteConfirm = null; renderHistory();
+    }
+
+    function renderHistory() {
+      const search = (document.getElementById('searchInput').value || '').toLowerCase();
+      let filtered = transactions.filter(t =>
+        t.sender.toLowerCase().includes(search) ||
+        t.refNumber.toLowerCase().includes(search) ||
+        t.date.includes(search) ||
+        t.payees.some(p => p.name.toLowerCase().includes(search))
+      );
+      filtered.sort((a, b) => sortOrder === 'newest' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+
+      const sb = document.getElementById('summaryBar');
+      const sr = document.getElementById('searchRow');
+      if (transactions.length > 0) {
+        sb.classList.remove('hidden'); sr.classList.remove('hidden');
+        document.getElementById('totalTHB').textContent = '฿' + fmt(transactions.reduce((s,t)=>s+t.thbAmount,0));
+        document.getElementById('txCount').textContent = transactions.length;
+      } else { sb.classList.add('hidden'); sr.classList.add('hidden'); }
+
+      const list = document.getElementById('txList');
+      if (!filtered.length) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
+          <div class="empty-title">${!transactions.length ? 'No transactions yet' : 'No matching transactions'}</div>
+          <div class="empty-sub">${!transactions.length ? 'Log your first transaction to get started' : 'Try adjusting your search'}</div></div>`;
+        return;
+      }
+
+      list.innerHTML = '<div class="tx-list">' + filtered.map(tx => {
+        const isExp = expandedTx === tx.id;
+        const isDel = deleteConfirm === tx.id;
+        const payeeNames = tx.payees.length ? ' → ' + tx.payees.map(p => p.name).join(', ') : '';
+        return `
+          <div class="tx-item${isExp?' expanded':''}">
+            <div class="tx-header" onclick="expandedTx=expandedTx==='${tx.id}'?null:'${tx.id}';deleteConfirm=null;renderHistory();">
+              <div class="tx-left">
+                <div class="tx-avatar">${tx.sender.charAt(0).toUpperCase()}</div>
+                <div>
+                  <div class="tx-name">${esc(tx.sender)}${payeeNames ? '<span style="color:#64748b;font-weight:400;font-size:12px">'+esc(payeeNames)+'</span>' : ''}</div>
+                  <div class="tx-meta">${esc(tx.date)} · ${esc(tx.refNumber)}</div>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div class="tx-amount-received">+฿${fmt(tx.thbAmount)}</div>
+                <div class="tx-toggle">${isExp?'▲':'▼'} Details</div>
+              </div>
+            </div>
+            ${isExp ? `
+              <div class="tx-details">
+                <div class="tx-flow-label in">Received</div>
+                <div class="tx-receive-box">
+                  <div class="tx-receive-name">🇹🇭 From ${esc(tx.sender)}</div>
+                  <div class="tx-receive-amount">+฿${fmt(tx.thbAmount)}</div>
+                </div>
+                ${tx.payees.length ? `
+                  <div class="tx-flow-label out" style="margin-top:10px">Paid Out</div>
+                  ${tx.payees.map(p => {
+                    const info = CURRENCIES[p.currency];
+                    return `<div class="tx-payee-row">
+                      <div class="tx-payee-name">${info.flag} ${esc(p.name)}</div>
+                      <div class="tx-payee-amount">-${info.symbol}${fmt(p.amount)}</div>
+                    </div>`;
+                  }).join('')}
+                ` : '<div style="font-size:13px;color:#475569;margin-top:8px">No payees recorded</div>'}
+                <div class="tx-actions">
+                  ${isDel ? `
+                    <span style="font-size:12px;color:#ef4444;display:flex;align-items:center">Delete?</span>
+                    <button class="delete-confirm-btn delete-yes" onclick="event.stopPropagation();deleteTx('${tx.id}')">Yes</button>
+                    <button class="delete-confirm-btn delete-cancel" onclick="event.stopPropagation();deleteConfirm=null;renderHistory()">Cancel</button>
+                  ` : `
+                    <button class="delete-btn" onclick="event.stopPropagation();deleteConfirm='${tx.id}';renderHistory()">Delete</button>
+                  `}
+                </div>
+              </div>
+            ` : ''}
+          </div>`;
+      }).join('') + '</div>';
+    }
+
+    addPayee();
+    updateHistoryCount();
+    updateRateDisplay();
+  </script>
+</body>
+</html>
